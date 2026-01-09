@@ -530,20 +530,30 @@ impl App {
                     "redis_version" => info.redis_version = val.to_string(),
                     "os" => info.os = val.to_string(),
                     "role" => info.role = val.to_string(),
+                    "redis_mode" => {
+                        if val == "sentinel" {
+                            info.server_type = ServerType::Sentinel;
+                        }
+                    }
                     _ => {}
                 }
             }
         }
         
-        // Check if it's a Sentinel
+        // If already detected as Sentinel from INFO, return early
+        if info.server_type == ServerType::Sentinel {
+            return Ok(info);
+        }
+        
+        // Check if it's a Sentinel by command (fallback)
         let sentinel_check: Result<String, _> = redis::cmd("SENTINEL")
-            .arg("MASTER")
-            .arg("mymaster")
+            .arg("MASTERS")
             .query_async(&mut con)
             .await;
         
-        if sentinel_check.is_ok() || info.role == "sentinel" {
+        if sentinel_check.is_ok() {
             info.server_type = ServerType::Sentinel;
+            info.role = "sentinel".to_string();
             return Ok(info);
         }
         

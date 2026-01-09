@@ -866,17 +866,25 @@ async fn main() -> Result<()> {
                                 app.command_text.pop();
                                 app.update_command_suggestions();
                             }
-                            KeyCode::Down | KeyCode::Char('j') => {
+                            KeyCode::Down => {
                                 if !app.command_suggestions.is_empty() {
                                     app.command_suggestion_selected = (app.command_suggestion_selected + 1) % app.command_suggestions.len();
                                 }
                             }
-                            KeyCode::Up | KeyCode::Char('k') => {
+                            KeyCode::Up => {
                                 if !app.command_suggestions.is_empty() {
                                     if app.command_suggestion_selected > 0 {
                                         app.command_suggestion_selected -= 1;
                                     } else {
                                         app.command_suggestion_selected = app.command_suggestions.len() - 1;
+                                    }
+                                }
+                            }
+                            KeyCode::Right | KeyCode::Tab => {
+                                if !app.command_suggestions.is_empty() {
+                                    if let Some(selected) = app.command_suggestions.get(app.command_suggestion_selected) {
+                                        app.command_text = selected.command.clone();
+                                        app.update_command_suggestions();
                                     }
                                 }
                             }
