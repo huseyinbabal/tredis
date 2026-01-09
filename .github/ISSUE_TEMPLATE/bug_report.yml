@@ -1,0 +1,101 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug!
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the bug...
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Run `tredis ...`
+        2. Navigate to '...'
+        3. Press '...'
+        4. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: tredis Version
+      description: Output of `tredis --version`
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating System
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: redis_version
+    attributes:
+      label: Redis Version
+      description: Redis server version (if known)
+      placeholder: "7.2.4"
+
+  - type: dropdown
+    id: redis_type
+    attributes:
+      label: Redis Type
+      description: Type of Redis server
+      options:
+        - Local Redis
+        - Upstash
+        - Redis Cloud
+        - AWS ElastiCache
+        - Azure Cache for Redis
+        - Other Cloud Provider
+        - Self-hosted
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: Add any relevant logs or screenshots.
+      placeholder: Paste logs or drag & drop screenshots here...
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other context about the problem.

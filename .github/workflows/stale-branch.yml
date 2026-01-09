@@ -1,0 +1,73 @@
+name: Delete Merged Branches
+
+on:
+  pull_request:
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  delete-branch:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete merged branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            if (context.eventName === 'pull_request') {
+              const branchName = context.payload.pull_request.head.ref;
+              
+              // Don't delete main/master branches
+              if (branchName === 'main' || branchName === 'master') {
+                console.log(`Skipping deletion of protected branch: ${branchName}`);
+                return;
+              }
+              
+              try {
+                await github.rest.git.deleteRef({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  ref: `heads/${branchName}`
+                });
+                console.log(`Deleted branch: ${branchName}`);
+              } catch (error) {
+                console.log(`Failed to delete branch ${branchName}: ${error.message}`);
+              }
+            } else {
+              // Manual trigger - list and delete all merged branches
+              const { data: branches } = await github.rest.repos.listBranches({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100
+              });
+              
+              for (const branch of branches) {
+                const branchName = branch.name;
+                
+                // Skip protected branches
+                if (branchName === 'main' || branchName === 'master') {
+                  continue;
+                }
+                
+                // Check if branch is merged
+                try {
+                  const { data: comparison } = await github.rest.repos.compareCommits({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    base: 'master',
+                    head: branchName
+                  });
+                  
+                  if (comparison.status === 'behind' || comparison.status === 'identical') {
+                    await github.rest.git.deleteRef({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      ref: `heads/${branchName}`
+                    });
+                    console.log(`Deleted merged branch: ${branchName}`);
+                  }
+                } catch (error) {
+                  console.log(`Skipping branch ${branchName}: ${error.message}`);
+                }
+              }
+            }
