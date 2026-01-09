@@ -1,6 +1,5 @@
-<p align="center">
-  <img src="assets/tredis-logo.png" alt="tredis" width="400"/>
-</p>
+
+<img width="693" height="336" alt="Screenshot 2026-01-09 at 17 10 47" src="https://github.com/user-attachments/assets/76b38b31-21d9-4b1e-a10c-be2942e86626" />
 
 # tredis - Terminal UI for Redis
 
@@ -13,15 +12,18 @@
 
 ---
 
-## Screenshots
+## Showcase
 
-<p align="center">
-  <img src="assets/screenshot-keys.png" alt="Keys View" width="800"/>
-</p>
-
-<p align="center">
-  <img src="assets/screenshot-streams.png" alt="Streams View" width="800"/>
-</p>
+<div align="center">
+  <video src="https://github.com/user-attachments/assets/52bad0e2-873c-4389-9f89-523383981a4e" 
+         controls 
+         autoplay 
+         loop 
+         muted
+         width="600">
+    Tarayıcınız video etiketini desteklemiyor.
+  </video>
+</div>
 
 ---
 
