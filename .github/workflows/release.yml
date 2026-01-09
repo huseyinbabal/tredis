@@ -72,7 +72,7 @@ jobs:
           tar -czf ../../../tredis-${{ matrix.target }}.tar.gz tredis
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tredis-${{ matrix.target }}
           path: tredis-${{ matrix.target }}.tar.gz
@@ -105,7 +105,7 @@ jobs:
           tar -czf ../../../tredis-${{ matrix.target }}.tar.gz tredis
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tredis-${{ matrix.target }}
           path: tredis-${{ matrix.target }}.tar.gz
@@ -133,7 +133,7 @@ jobs:
           7z a ../../../tredis-x86_64-pc-windows-msvc.zip tredis.exe
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: tredis-x86_64-pc-windows-msvc
           path: tredis-x86_64-pc-windows-msvc.zip
