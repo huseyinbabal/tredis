@@ -83,6 +83,10 @@ pub struct App {
     // Data - Info
     pub info_data: Vec<(String, String)>,
     pub info_scroll: usize,
+    pub info_search_active: bool,
+    pub info_search_text: String,
+    pub info_search_matches: Vec<usize>,  // Line indices that match
+    pub info_search_current: usize,       // Current match index
 
     // Data - Slowlog
     pub slowlogs: Vec<crate::model::SlowlogEntry>,
@@ -180,6 +184,10 @@ impl App {
             selected_client_index: 0,
             info_data: Vec::new(),
             info_scroll: 0,
+            info_search_active: false,
+            info_search_text: String::new(),
+            info_search_matches: Vec::new(),
+            info_search_current: 0,
             slowlogs: Vec::new(),
             selected_slowlog_index: 0,
             configs: Vec::new(),
@@ -813,6 +821,63 @@ impl App {
         if self.mode == Mode::Splash {
             self.splash_state.spinner_frame = (self.splash_state.spinner_frame + 1) % 4;
         }
+    }
+
+    /// Update info search matches based on current search text
+    pub fn update_info_search(&mut self) {
+        self.info_search_matches.clear();
+        self.info_search_current = 0;
+
+        if self.info_search_text.is_empty() {
+            return;
+        }
+
+        let search_lower = self.info_search_text.to_lowercase();
+
+        for (idx, (key, value)) in self.info_data.iter().enumerate() {
+            if key.to_lowercase().contains(&search_lower)
+                || value.to_lowercase().contains(&search_lower)
+            {
+                self.info_search_matches.push(idx);
+            }
+        }
+
+        // Scroll to first match
+        if !self.info_search_matches.is_empty() {
+            self.info_scroll = self.info_search_matches[0];
+        }
+    }
+
+    /// Go to next search match
+    pub fn info_search_next(&mut self) {
+        if self.info_search_matches.is_empty() {
+            return;
+        }
+
+        self.info_search_current = (self.info_search_current + 1) % self.info_search_matches.len();
+        self.info_scroll = self.info_search_matches[self.info_search_current];
+    }
+
+    /// Go to previous search match
+    pub fn info_search_prev(&mut self) {
+        if self.info_search_matches.is_empty() {
+            return;
+        }
+
+        if self.info_search_current == 0 {
+            self.info_search_current = self.info_search_matches.len() - 1;
+        } else {
+            self.info_search_current -= 1;
+        }
+        self.info_scroll = self.info_search_matches[self.info_search_current];
+    }
+
+    /// Clear info search
+    pub fn clear_info_search(&mut self) {
+        self.info_search_active = false;
+        self.info_search_text.clear();
+        self.info_search_matches.clear();
+        self.info_search_current = 0;
     }
 
     pub fn next(&mut self) {

@@ -125,6 +125,12 @@ fn render_keybindings_col1(f: &mut Frame, app: &App, area: Rect) {
             ("", ""),
         ],
         "monitor" => vec![("<j/k>", "Scroll"), ("<R>", "Clear"), ("", ""), ("", "")],
+        "info" => vec![
+            ("<j/k>", "Scroll"),
+            ("</>", "Search"),
+            ("<n/N>", "Next/Prev"),
+            ("<R>", "Refresh"),
+        ],
         "pubsub" => vec![
             ("<s>", "Test Subscribe"),
             ("<R>", "Refresh"),

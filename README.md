@@ -38,7 +38,7 @@
 - **Streams** - Browse and consume Redis Streams
 - **Client List** - View connected clients
 - **Slowlog** - Inspect slow queries
-- **Server Info** - View detailed server information
+- **Server Info** - View detailed server information with vim-style search (`/`, `n`, `N`)
 - **ACL Management** - View ACL users and permissions
 - **Configuration** - Browse and view Redis configuration
 - **Keyboard-Driven** - Vim-like navigation and commands
@@ -195,7 +195,7 @@ Server configurations are stored in:
 | **Navigation** | | |
 | Move up | `k` / `↑` | Move selection up |
 | Move down | `j` / `↓` | Move selection down |
-| Top | `g` | Jump to first item |
+| Top | `gg` | Jump to first item |
 | Bottom | `G` | Jump to last item |
 | **Pagination** | | |
 | Next page | `]` | Load next page of results |
@@ -205,18 +205,25 @@ Server configurations are stored in:
 | Describe | `Enter` / `d` | View key/resource details |
 | Back | `Esc` / `Backspace` | Go back to previous view |
 | **Actions** | | |
-| Refresh | `r` | Refresh current view |
-| Filter | `/` | Filter keys |
+| Refresh | `R` | Refresh current view |
+| Filter | `/` | Filter keys (in Keys view) |
 | Connect | `c` | Connect to selected server |
 | Add server | `a` | Add a new server |
 | Delete | `Ctrl-d` | Delete selected key/server |
 | Quit | `Ctrl-c` / `q` | Exit tredis |
+| **Info Search** | | |
+| Search | `/` | Start search in Info view |
+| Next match | `n` | Jump to next match |
+| Previous match | `N` | Jump to previous match |
+| Clear search | `Esc` | Clear search and highlights |
 | **Streams** | | |
 | Consume | `c` | Start consuming stream messages |
-| Stop | `s` | Stop consuming |
+| Stop | `Esc` | Stop consuming |
+| **PubSub** | | |
+| Test Subscribe | `s` | Subscribe to a channel |
+| Stop | `Esc` | Stop subscription |
 | **Monitor** | | |
-| Start | `m` | Start monitoring commands |
-| Stop | `s` | Stop monitoring |
+| Clear | `R` | Clear monitor entries |
 
 ---
 

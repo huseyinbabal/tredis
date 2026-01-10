@@ -221,7 +221,24 @@ async fn main() -> Result<()> {
                 // Mode specific key handling
                 match app.mode {
                     Mode::Normal => {
-                        if app.filter_active {
+                        if app.info_search_active {
+                            // Info search mode - typing search query
+                            match key.code {
+                                KeyCode::Enter | KeyCode::Esc => {
+                                    // Close search input but keep results highlighted
+                                    app.info_search_active = false;
+                                }
+                                KeyCode::Backspace => {
+                                    app.info_search_text.pop();
+                                    app.update_info_search();
+                                }
+                                KeyCode::Char(c) => {
+                                    app.info_search_text.push(c);
+                                    app.update_info_search();
+                                }
+                                _ => {}
+                            }
+                        } else if app.filter_active {
                             match key.code {
                                 KeyCode::Enter => {
                                     app.filter_active = false;
@@ -322,8 +339,12 @@ async fn main() -> Result<()> {
                              let mut handled_g = false;
                              match key.code {
                                 KeyCode::Esc => {
+                                    // Clear info search if active
+                                    if app.active_resource == "info" && !app.info_search_text.is_empty() {
+                                        app.clear_info_search();
+                                    }
                                     // Stop stream consumer if active
-                                    if app.stream_active {
+                                    else if app.stream_active {
                                         app.stop_stream_consumer();
                                     }
                                 }
@@ -477,12 +498,29 @@ async fn main() -> Result<()> {
                                     app.update_command_suggestions();
                                 }
                                 KeyCode::Char('/') => {
-                                    // Filter only works for keys resource
                                     if app.active_resource == "keys" {
+                                        // Filter for keys resource
                                         app.filter_active = true;
                                         app.filter_text.clear();
-                                        // Don't fetch yet, just clear filter locally
                                         app.apply_filter();
+                                    } else if app.active_resource == "info" {
+                                        // Search for info resource
+                                        app.info_search_active = true;
+                                        app.info_search_text.clear();
+                                        app.info_search_matches.clear();
+                                        app.info_search_current = 0;
+                                    }
+                                }
+                                KeyCode::Char('n') => {
+                                    // Next search match (vim-style) - only for info
+                                    if app.active_resource == "info" && !app.info_search_text.is_empty() {
+                                        app.info_search_next();
+                                    }
+                                }
+                                KeyCode::Char('N') => {
+                                    // Previous search match (vim-style with Shift) - only for info
+                                    if app.active_resource == "info" && !app.info_search_text.is_empty() {
+                                        app.info_search_prev();
                                     }
                                 }
                                 KeyCode::Char('s') => {
@@ -1316,31 +1354,6 @@ fn parse_uri_details(uri: &str) -> String {
 }
 
 fn format_server_details(server: &model::ServerConfig) -> String {
-    let mut output = String::new();
-    
-    // Header
-    output.push_str(&format!("# {}\n\n", server.name));
-    
-    // Server Info Section
-    output.push_str("## Server Information\n\n");
-    if let Some(ref info) = server.info {
-        output.push_str(&format!("**Type:** {}\n", info.server_type.as_str()));
-        output.push_str(&format!("**Version:** {}\n", info.redis_version));
-        output.push_str(&format!("**Role:** {}\n", info.role));
-        if !info.os.is_empty() {
-            output.push_str(&format!("**OS:** {}\n", info.os));
-        }
-        if let Some(cluster_size) = info.cluster_size {
-            output.push_str(&format!("**Cluster Size:** {}\n", cluster_size));
-        }
-    } else {
-        output.push_str("_(Not detected - connect to server first)_\n");
-    }
-    output.push_str("\n");
-    
-    // Connection Details Section
-    output.push_str("## Connection Details\n\n");
-    
     // Parse URI for details
     let uri = server.uri.trim();
     let rest = uri.strip_prefix("rediss://").or_else(|| uri.strip_prefix("redis://")).unwrap_or(uri);
@@ -1374,14 +1387,39 @@ fn format_server_details(server: &model::ServerConfig) -> String {
         host = host_port.to_string();
     }
     
-    output.push_str(&format!("**URI:** {}\n\n", mask_uri(&server.uri)));
-    output.push_str(&format!("**Host:** {}\n", host));
-    output.push_str(&format!("**Port:** {}\n", port));
-    output.push_str(&format!("**Database:** {}\n", db));
-    output.push_str(&format!("**TLS:** {}\n", if is_tls { "Yes" } else { "No" }));
-    output.push_str(&format!("**Auth:** {}\n", if has_auth { "Yes (credentials hidden)" } else { "No" }));
+    // Build JSON object
+    let mut json_obj = serde_json::Map::new();
     
-    output
+    json_obj.insert("name".to_string(), serde_json::Value::String(server.name.clone()));
+    
+    // Server info
+    if let Some(ref info) = server.info {
+        let mut server_info = serde_json::Map::new();
+        server_info.insert("type".to_string(), serde_json::Value::String(info.server_type.as_str().to_string()));
+        server_info.insert("version".to_string(), serde_json::Value::String(info.redis_version.clone()));
+        server_info.insert("role".to_string(), serde_json::Value::String(info.role.clone()));
+        if !info.os.is_empty() {
+            server_info.insert("os".to_string(), serde_json::Value::String(info.os.clone()));
+        }
+        if let Some(cluster_size) = info.cluster_size {
+            server_info.insert("cluster_size".to_string(), serde_json::Value::Number(serde_json::Number::from(cluster_size)));
+        }
+        json_obj.insert("server_info".to_string(), serde_json::Value::Object(server_info));
+    } else {
+        json_obj.insert("server_info".to_string(), serde_json::Value::Null);
+    }
+    
+    // Connection details
+    let mut connection = serde_json::Map::new();
+    connection.insert("uri".to_string(), serde_json::Value::String(mask_uri(&server.uri)));
+    connection.insert("host".to_string(), serde_json::Value::String(host));
+    connection.insert("port".to_string(), serde_json::Value::String(port));
+    connection.insert("database".to_string(), serde_json::Value::String(db));
+    connection.insert("tls".to_string(), serde_json::Value::Bool(is_tls));
+    connection.insert("auth".to_string(), serde_json::Value::Bool(has_auth));
+    json_obj.insert("connection".to_string(), serde_json::Value::Object(connection));
+    
+    serde_json::to_string_pretty(&json_obj).unwrap_or_else(|_| "{}".to_string())
 }
 
 fn truncate_str(s: &str, max_len: usize) -> String {
