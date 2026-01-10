@@ -5,6 +5,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   release:
     uses: huseyinbabal/rust-actions/.github/workflows/release.yml@main
