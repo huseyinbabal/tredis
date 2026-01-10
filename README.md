@@ -105,6 +105,22 @@ sudo mv tredis /usr/local/bin/
 cargo install tredis
 ```
 
+### Using Docker
+
+```bash
+# Run interactively
+docker run --rm -it huseyinbabal/tredis
+
+# Connect to a specific Redis server
+docker run --rm -it huseyinbabal/tredis --host redis.example.com --port 6379
+
+# Build locally
+docker build -t tredis .
+docker run --rm -it tredis
+```
+
+> **Note:** Use `-it` flags for interactive terminal support (required for TUI).
+
 ### From Source
 
 tredis is built with Rust. Make sure you have Rust 1.70+ installed, along with a C compiler and linker.

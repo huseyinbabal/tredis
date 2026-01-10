@@ -15,6 +15,7 @@ jobs:
       crate_name: tredis
       description: "Terminal UI for Redis"
       homepage: "https://github.com/huseyinbabal/tredis"
+      docker_image: tredis
     secrets:
       CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
       HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
