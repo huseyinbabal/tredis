@@ -1,7 +1,15 @@
 [package]
 name = "tredis"
-version = "1.0.0-rc.2"
+version = "1.0.0-rc.3"
 edition = "2021"
+description = "Terminal UI for Redis - A modern TUI for managing Redis servers"
+license = "MIT"
+repository = "https://github.com/huseyinbabal/tredis"
+homepage = "https://github.com/huseyinbabal/tredis"
+keywords = ["redis", "tui", "terminal", "database", "cli"]
+categories = ["command-line-utilities", "database"]
+readme = "README.md"
+authors = ["Huseyin Babal"]
 
 [dependencies]
 anyhow = "1.0.100"
