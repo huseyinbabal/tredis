@@ -16,7 +16,10 @@ use std::{io, path::PathBuf, sync::OnceLock, time::{Duration, Instant}};
 use tokio::sync::mpsc;
 use futures::StreamExt;
 
-pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+pub const VERSION: &str = match option_env!("TREDIS_VERSION") {
+    Some(v) => v,
+    None => env!("CARGO_PKG_VERSION"),
+};
 
 /// Log level for TRedis
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, clap::ValueEnum)]
