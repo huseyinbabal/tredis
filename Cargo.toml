@@ -1,6 +1,6 @@
 [package]
 name = "tredis"
-version = "1.0.0-rc.5"
+version = "1.0.0-rc.6"
 edition = "2021"
 description = "Terminal UI for Redis - A modern TUI for managing Redis servers"
 license = "MIT"
