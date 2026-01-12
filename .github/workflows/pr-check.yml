@@ -17,3 +17,4 @@ jobs:
       run_tests: true
       run_fmt: true
       run_clippy: true
+      run_security_scan: true
