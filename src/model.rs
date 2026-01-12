@@ -194,6 +194,7 @@ pub struct PubSubChannel {
 #[derive(Debug, Clone)]
 pub struct PubSubMessage {
     pub timestamp: String,
+    #[allow(dead_code)]
     pub channel: String,
     pub message: String,
 }

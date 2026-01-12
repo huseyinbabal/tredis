@@ -185,8 +185,8 @@ async fn main() -> Result<()> {
     // Create a channel for async events (like connection success)
     let (tx, mut rx) = mpsc::channel(100);
 
-    // Channel for monitor task control
-    let (monitor_tx, mut monitor_rx) = mpsc::channel::<bool>(1);
+    // Channel for monitor task control (reserved for future use)
+    let (_monitor_tx, _monitor_rx) = mpsc::channel::<bool>(1);
 
     // Check if we need to show server dialog (no servers configured and no CLI args override)
     let has_cli_override = args.host != "localhost" || args.port != 6379 || args.db != 0;
@@ -799,7 +799,6 @@ async fn main() -> Result<()> {
                                                 "[TASK] Consumer task started for stream: {}",
                                                 stream_name
                                             );
-                                            use redis::AsyncCommands;
 
                                             log!(LogLevel::Debug, "[TASK] Connecting to Redis...");
                                             if let Ok(client) = redis::Client::open(format!(
@@ -850,6 +849,7 @@ async fn main() -> Result<()> {
 
                                                     // Start consuming messages (polling mode - no BLOCK)
                                                     loop {
+                                                        #[allow(clippy::type_complexity)]
                                                         let result: Result<
                                                             Vec<(
                                                                 String,
@@ -1296,8 +1296,9 @@ async fn main() -> Result<()> {
                                                                 Ok(_) => {
                                                                     // Remove the leading '+' and trim
                                                                     let line = line.trim();
-                                                                    if line.starts_with('+') {
-                                                                        let line = &line[1..];
+                                                                    if let Some(line) =
+                                                                        line.strip_prefix('+')
+                                                                    {
                                                                         if let Some(entry) =
                                                                             parse_monitor_output(
                                                                                 line,
@@ -1424,173 +1425,160 @@ async fn main() -> Result<()> {
         }
 
         // Handle async events - process ALL pending events (non-blocking)
-        loop {
-            match rx.try_recv() {
-                Ok(event) => match event {
-                    AppEvent::Progress(msg) => {
-                        app.splash_state.set_message(&msg);
-                        app.splash_state.complete_step();
-                    }
-                    AppEvent::Connect => {
-                        log!(LogLevel::Info, "[EVENT-CONNECT] Connect event received");
+        while let Ok(event) = rx.try_recv() {
+            match event {
+                AppEvent::Progress(msg) => {
+                    app.splash_state.set_message(&msg);
+                    app.splash_state.complete_step();
+                }
+                AppEvent::Connect => {
+                    log!(LogLevel::Info, "[EVENT-CONNECT] Connect event received");
+                    log!(
+                        LogLevel::Info,
+                        "[EVENT-CONNECT] Connection config - Host: {}, Port: {}, DB: {}",
+                        app.connection_config.host,
+                        app.connection_config.port,
+                        app.connection_config.db
+                    );
+
+                    app.splash_state.set_message("Connected! Fetching keys...");
+                    app.splash_state.complete_step();
+
+                    // Do the actual connection here in the main thread (tokio runtime)
+                    log!(LogLevel::Info, "[EVENT-CONNECT] Calling app.connect()...");
+                    if let Err(e) = app.connect().await {
+                        log!(LogLevel::Error, "[EVENT-CONNECT] Connection error: {}", e);
+                        app.splash_state
+                            .set_message(&format!("Connection failed: {}", e));
+                        tokio::time::sleep(Duration::from_secs(2)).await;
+                        // Go back to servers list instead of quitting
+                        app.mode = Mode::Normal;
+                        app.active_resource = "servers".to_string();
+                        app.current_server = None;
+                    } else {
                         log!(
                             LogLevel::Info,
-                            "[EVENT-CONNECT] Connection config - Host: {}, Port: {}, DB: {}",
-                            app.connection_config.host,
-                            app.connection_config.port,
-                            app.connection_config.db
+                            "[EVENT-CONNECT] Connected successfully, fetching keys..."
                         );
-
-                        app.splash_state.set_message("Connected! Fetching keys...");
-                        app.splash_state.complete_step();
-
-                        // Do the actual connection here in the main thread (tokio runtime)
-                        log!(LogLevel::Info, "[EVENT-CONNECT] Calling app.connect()...");
-                        if let Err(e) = app.connect().await {
-                            log!(LogLevel::Error, "[EVENT-CONNECT] Connection error: {}", e);
+                        // Fetch keys
+                        if let Err(e) = app.fetch_keys(None).await {
+                            log!(
+                                LogLevel::Error,
+                                "[EVENT-CONNECT] Error fetching keys: {}",
+                                e
+                            );
                             app.splash_state
-                                .set_message(&format!("Connection failed: {}", e));
+                                .set_message(&format!("Error fetching keys: {}", e));
                             tokio::time::sleep(Duration::from_secs(2)).await;
-                            // Go back to servers list instead of quitting
+                            // Go back to servers list
                             app.mode = Mode::Normal;
                             app.active_resource = "servers".to_string();
                             app.current_server = None;
                         } else {
                             log!(
                                 LogLevel::Info,
-                                "[EVENT-CONNECT] Connected successfully, fetching keys..."
+                                "[EVENT-CONNECT] Keys fetched, switching to Normal mode"
                             );
-                            // Fetch keys
-                            if let Err(e) = app.fetch_keys(None).await {
-                                log!(
-                                    LogLevel::Error,
-                                    "[EVENT-CONNECT] Error fetching keys: {}",
-                                    e
-                                );
-                                app.splash_state
-                                    .set_message(&format!("Error fetching keys: {}", e));
-                                tokio::time::sleep(Duration::from_secs(2)).await;
-                                // Go back to servers list
-                                app.mode = Mode::Normal;
-                                app.active_resource = "servers".to_string();
-                                app.current_server = None;
-                            } else {
-                                log!(
-                                    LogLevel::Info,
-                                    "[EVENT-CONNECT] Keys fetched, switching to Normal mode"
-                                );
-                                app.splash_state.complete_step();
-                                tokio::time::sleep(Duration::from_millis(500)).await;
-                                app.mode = Mode::Normal;
-                            }
+                            app.splash_state.complete_step();
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                            app.mode = Mode::Normal;
                         }
                     }
-                    AppEvent::DetectServerInfo { uri, server_name } => {
-                        // Detect server info in background
-                        let tx_clone = tx.clone();
-                        tokio::spawn(async move {
-                            if let Ok(info) = App::detect_server_info(&uri).await {
-                                let _ = tx_clone
-                                    .send(AppEvent::ServerInfoDetected { server_name, info })
-                                    .await;
-                            }
-                        });
-                    }
-                    AppEvent::ServerInfoDetected { server_name, info } => {
-                        // Update server info in config
-                        if let Err(e) = app.update_server_info(&server_name, info.clone()) {
-                            log!(LogLevel::Error, "Failed to save server info: {}", e);
-                        }
-                        // Also update current_server if it matches
-                        if let Some(ref mut current) = app.current_server {
-                            if current.name == server_name {
-                                current.info = Some(info);
-                            }
-                        }
-                    }
-                    AppEvent::MonitorCommand(entry) => {
-                        if app.monitor_active {
-                            // Prepend to beginning of list (newest first)
-                            app.monitor_entries.insert(0, entry);
-                            // Keep only last 1000 entries
-                            if app.monitor_entries.len() > 1000 {
-                                app.monitor_entries.pop();
-                            }
-                            // Only auto-scroll if user is at the top (viewing latest entries)
-                            // If user scrolled down, don't interrupt them
-                            if app.selected_monitor_index == 0 && app.monitor_scroll == 0 {
-                                // User is at top, keep them there to see new entries
-                                app.selected_monitor_index = 0;
-                                app.monitor_scroll = 0;
-                            } else {
-                                // User scrolled down, increment their position to keep viewing same entries
-                                app.selected_monitor_index += 1;
-                            }
-                        }
-                    }
+                }
 
-                    AppEvent::PubSubMessage(entry) => {
-                        if app.pubsub_subscribe_mode && !app.pubsub_subscribe_channel.is_empty() {
-                            // Prepend to beginning of list (newest first)
-                            app.pubsub_messages.insert(0, entry);
-                            // Keep only last 1000 entries
-                            if app.pubsub_messages.len() > 1000 {
-                                app.pubsub_messages.pop();
-                            }
+                AppEvent::ServerInfoDetected { server_name, info } => {
+                    // Update server info in config
+                    if let Err(e) = app.update_server_info(&server_name, info.clone()) {
+                        log!(LogLevel::Error, "Failed to save server info: {}", e);
+                    }
+                    // Also update current_server if it matches
+                    if let Some(ref mut current) = app.current_server {
+                        if current.name == server_name {
+                            current.info = Some(info);
                         }
                     }
-                    AppEvent::StreamMessage(entry) => {
+                }
+                AppEvent::MonitorCommand(entry) => {
+                    if app.monitor_active {
+                        // Prepend to beginning of list (newest first)
+                        app.monitor_entries.insert(0, entry);
+                        // Keep only last 1000 entries
+                        if app.monitor_entries.len() > 1000 {
+                            app.monitor_entries.pop();
+                        }
+                        // Only auto-scroll if user is at the top (viewing latest entries)
+                        // If user scrolled down, don't interrupt them
+                        if app.selected_monitor_index == 0 && app.monitor_scroll == 0 {
+                            // User is at top, keep them there to see new entries
+                            app.selected_monitor_index = 0;
+                            app.monitor_scroll = 0;
+                        } else {
+                            // User scrolled down, increment their position to keep viewing same entries
+                            app.selected_monitor_index += 1;
+                        }
+                    }
+                }
+
+                AppEvent::PubSubMessage(entry) => {
+                    if app.pubsub_subscribe_mode && !app.pubsub_subscribe_channel.is_empty() {
+                        // Prepend to beginning of list (newest first)
+                        app.pubsub_messages.insert(0, entry);
+                        // Keep only last 1000 entries
+                        if app.pubsub_messages.len() > 1000 {
+                            app.pubsub_messages.pop();
+                        }
+                    }
+                }
+                AppEvent::StreamMessage(entry) => {
+                    log!(
+                        LogLevel::Info,
+                        "[HANDLER] ========================================"
+                    );
+                    log!(LogLevel::Info, "[HANDLER] StreamMessage received!");
+                    log!(
+                        LogLevel::Info,
+                        "[HANDLER]   stream_active: {}",
+                        app.stream_active
+                    );
+                    log!(LogLevel::Info, "[HANDLER]   Entry ID: {}", entry.id);
+                    log!(LogLevel::Info, "[HANDLER]   Fields: {:?}", entry.fields);
+                    if app.stream_active {
+                        log!(
+                            LogLevel::Info,
+                            "[HANDLER] Adding message to stream_messages"
+                        );
+                        log!(
+                            LogLevel::Info,
+                            "[HANDLER]   Current count: {}",
+                            app.stream_messages.len()
+                        );
+                        // Prepend to beginning of list (newest first)
+                        app.stream_messages.insert(0, entry);
+                        log!(
+                            LogLevel::Info,
+                            "[HANDLER]   New count: {}",
+                            app.stream_messages.len()
+                        );
+                        log!(LogLevel::Info, "[HANDLER] Message successfully added!");
+                        // Keep only last 1000 entries
+                        if app.stream_messages.len() > 1000 {
+                            app.stream_messages.pop();
+                        }
                         log!(
                             LogLevel::Info,
                             "[HANDLER] ========================================"
                         );
-                        log!(LogLevel::Info, "[HANDLER] StreamMessage received!");
+                    } else {
+                        log!(
+                            LogLevel::Warn,
+                            "[HANDLER] Message IGNORED - stream_active is FALSE!"
+                        );
                         log!(
                             LogLevel::Info,
-                            "[HANDLER]   stream_active: {}",
-                            app.stream_active
+                            "[HANDLER] ========================================"
                         );
-                        log!(LogLevel::Info, "[HANDLER]   Entry ID: {}", entry.id);
-                        log!(LogLevel::Info, "[HANDLER]   Fields: {:?}", entry.fields);
-                        if app.stream_active {
-                            log!(
-                                LogLevel::Info,
-                                "[HANDLER] Adding message to stream_messages"
-                            );
-                            log!(
-                                LogLevel::Info,
-                                "[HANDLER]   Current count: {}",
-                                app.stream_messages.len()
-                            );
-                            // Prepend to beginning of list (newest first)
-                            app.stream_messages.insert(0, entry);
-                            log!(
-                                LogLevel::Info,
-                                "[HANDLER]   New count: {}",
-                                app.stream_messages.len()
-                            );
-                            log!(LogLevel::Info, "[HANDLER] Message successfully added!");
-                            // Keep only last 1000 entries
-                            if app.stream_messages.len() > 1000 {
-                                app.stream_messages.pop();
-                            }
-                            log!(
-                                LogLevel::Info,
-                                "[HANDLER] ========================================"
-                            );
-                        } else {
-                            log!(
-                                LogLevel::Warn,
-                                "[HANDLER] Message IGNORED - stream_active is FALSE!"
-                            );
-                            log!(
-                                LogLevel::Info,
-                                "[HANDLER] ========================================"
-                            );
-                        }
                     }
-                },
-                Err(_) => break, // No more events
+                }
             }
         }
 
@@ -1617,10 +1605,6 @@ async fn main() -> Result<()> {
 enum AppEvent {
     Progress(String),
     Connect,
-    DetectServerInfo {
-        uri: String,
-        server_name: String,
-    },
     ServerInfoDetected {
         server_name: String,
         info: ServerInfo,
@@ -1631,7 +1615,7 @@ enum AppEvent {
 }
 
 fn parse_monitor_output(line: &str) -> Option<model::MonitorEntry> {
-    use chrono::{DateTime, TimeZone, Utc};
+    use chrono::{TimeZone, Utc};
 
     // MONITOR output format: 1234567890.123456 [0 127.0.0.1:12345] "command" "arg1" "arg2"
     if line.is_empty() {
@@ -1664,7 +1648,7 @@ fn parse_monitor_output(line: &str) -> Option<model::MonitorEntry> {
 
     // Parse [db client:port]
     let client_parts: Vec<&str> = client_db.splitn(2, ' ').collect();
-    let db = client_parts.get(0).unwrap_or(&"0").to_string();
+    let db = client_parts.first().unwrap_or(&"0").to_string();
     let client = client_parts.get(1).unwrap_or(&"unknown").to_string();
 
     Some(model::MonitorEntry {
@@ -1673,59 +1657,6 @@ fn parse_monitor_output(line: &str) -> Option<model::MonitorEntry> {
         client,
         command,
     })
-}
-
-fn parse_uri_details(uri: &str) -> String {
-    let uri = uri.trim();
-    let rest = uri.strip_prefix("redis://").unwrap_or(uri);
-
-    let mut host = "localhost".to_string();
-    let mut port = "6379".to_string();
-    let mut db = "0".to_string();
-    let mut user = "None".to_string();
-    let mut password = "None".to_string();
-
-    // Check for auth (user:password@)
-    let (auth_part, host_part) = if let Some(at_pos) = rest.rfind('@') {
-        let (auth, h) = rest.split_at(at_pos);
-        (Some(auth), &h[1..])
-    } else {
-        (None, rest)
-    };
-
-    // Parse auth if present
-    if let Some(auth) = auth_part {
-        if let Some(colon_pos) = auth.find(':') {
-            let (u, p) = auth.split_at(colon_pos);
-            user = u.to_string();
-            password = "*".repeat(p.len() - 1); // Hide password
-        } else {
-            password = "*".repeat(auth.len());
-        }
-    }
-
-    // Parse host:port/db
-    let (host_port, db_str) = if let Some(slash_pos) = host_part.find('/') {
-        let (hp, d) = host_part.split_at(slash_pos);
-        (hp, &d[1..])
-    } else {
-        (host_part, "0")
-    };
-    db = db_str.to_string();
-
-    // Parse host and port
-    if let Some(colon_pos) = host_port.rfind(':') {
-        let (h, p) = host_port.split_at(colon_pos);
-        host = h.to_string();
-        port = p[1..].to_string();
-    } else {
-        host = host_port.to_string();
-    }
-
-    format!(
-        "  Host:     {}\n  Port:     {}\n  Database: {}\n  User:     {}\n  Password: {}",
-        host, port, db, user, password
-    )
 }
 
 fn format_server_details(server: &model::ServerConfig) -> String {
@@ -1744,9 +1675,6 @@ fn format_server_details(server: &model::ServerConfig) -> String {
         (None, rest)
     };
 
-    let mut host = "localhost".to_string();
-    let mut port = "6379".to_string();
-    let mut db = "0".to_string();
     let has_auth = auth_part.is_some();
 
     let (host_port, db_str) = if let Some(slash_pos) = host_part.find('/') {
@@ -1755,15 +1683,14 @@ fn format_server_details(server: &model::ServerConfig) -> String {
     } else {
         (host_part, "0")
     };
-    db = db_str.to_string();
+    let db = db_str.to_string();
 
-    if let Some(colon_pos) = host_port.rfind(':') {
+    let (host, port) = if let Some(colon_pos) = host_port.rfind(':') {
         let (h, p) = host_port.split_at(colon_pos);
-        host = h.to_string();
-        port = p[1..].to_string();
+        (h.to_string(), p[1..].to_string())
     } else {
-        host = host_port.to_string();
-    }
+        (host_port.to_string(), "6379".to_string())
+    };
 
     // Build JSON object
     let mut json_obj = serde_json::Map::new();
@@ -1822,12 +1749,4 @@ fn format_server_details(server: &model::ServerConfig) -> String {
     );
 
     serde_json::to_string_pretty(&json_obj).unwrap_or_else(|_| "{}".to_string())
-}
-
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len - 3])
-    }
 }

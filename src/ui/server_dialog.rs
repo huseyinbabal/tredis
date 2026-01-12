@@ -62,10 +62,6 @@ impl ServerDialogState {
         self.error_message = None;
     }
 
-    pub fn clear_error(&mut self) {
-        self.error_message = None;
-    }
-
     pub fn set_error(&mut self, msg: String) {
         self.error_message = Some(msg);
     }

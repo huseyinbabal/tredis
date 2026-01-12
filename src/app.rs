@@ -12,7 +12,6 @@ use std::collections::HashMap;
 pub enum Mode {
     Splash,
     Normal,
-    Command,
     Describe,
     Confirm,
     Resources,
@@ -983,18 +982,14 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        if !self.scan_result.is_empty() {
-            if self.selected_key_index < self.scan_result.len() - 1 {
-                self.selected_key_index += 1;
-            }
+        if !self.scan_result.is_empty() && self.selected_key_index < self.scan_result.len() - 1 {
+            self.selected_key_index += 1;
         }
     }
 
     pub fn previous(&mut self) {
-        if !self.scan_result.is_empty() {
-            if self.selected_key_index > 0 {
-                self.selected_key_index -= 1;
-            }
+        if !self.scan_result.is_empty() && self.selected_key_index > 0 {
+            self.selected_key_index -= 1;
         }
     }
 
@@ -1042,11 +1037,11 @@ impl App {
                         .unwrap_or_default();
 
                     let first_entry_id = first
-                        .get(0)
+                        .first()
                         .map(|e| e.0.clone())
                         .unwrap_or_else(|| "-".to_string());
                     let last_entry_id = last
-                        .get(0)
+                        .first()
                         .map(|e| e.0.clone())
                         .unwrap_or_else(|| "-".to_string());
 
