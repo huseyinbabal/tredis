@@ -114,6 +114,12 @@ docker run --rm -it huseyinbabal/tredis
 # Connect to a specific Redis server
 docker run --rm -it huseyinbabal/tredis --host redis.example.com --port 6379
 
+# Using environment variables (recommended for containers)
+docker run --rm -it \
+  -e TREDIS_HOST=redis.example.com \
+  -e TREDIS_PORT=6379 \
+  huseyinbabal/tredis
+
 # Build locally
 docker build -t tredis .
 docker run --rm -it tredis
@@ -161,6 +167,17 @@ tredis --host localhost --port 6379 --db 1
 # Enable debug logging
 tredis --log-level debug
 ```
+
+### CLI Options
+
+| Flag | ENV Variables | Default | Description |
+|------|---------------|---------|-------------|
+| `-H, --host` | `TREDIS_HOST`, `HOST` | `localhost` | Redis host |
+| `-p, --port` | `TREDIS_PORT`, `PORT` | `6379` | Redis port |
+| `-d, --db` | `TREDIS_DB`, `DB` | `0` | Redis database |
+| `-l, --log-level` | `TREDIS_LOG_LEVEL`, `LOG_LEVEL` | `off` | Log level (off, error, warn, info, debug) |
+
+> **Note:** CLI arguments take precedence over environment variables. `TREDIS_*` prefixed variables take precedence over non-prefixed ones.
 
 ### Adding a Server
 

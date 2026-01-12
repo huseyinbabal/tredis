@@ -1,6 +1,9 @@
-use crate::model::{ConnectionConfig, KeyInfo, KeyValue, StreamEntry, TredisConfig, ServerConfig, ServerInfo, ServerType};
-use crate::ui::splash::SplashState;
+use crate::model::{
+    ConnectionConfig, KeyInfo, KeyValue, ServerConfig, ServerInfo, ServerType, StreamEntry,
+    TredisConfig,
+};
 use crate::ui::server_dialog::ServerDialogState;
+use crate::ui::splash::SplashState;
 use anyhow::Result;
 use redis::AsyncCommands;
 use std::collections::HashMap;
@@ -9,7 +12,6 @@ use std::collections::HashMap;
 pub enum Mode {
     Splash,
     Normal,
-    Command,
     Describe,
     Confirm,
     Resources,
@@ -61,13 +63,13 @@ pub struct App {
     pub active_resource: String,
     pub splash_state: SplashState,
     pub connection_config: ConnectionConfig,
-    
+
     // Server configuration
     pub tredis_config: TredisConfig,
     pub current_server: Option<ServerConfig>,
     pub server_dialog_state: ServerDialogState,
     pub selected_server_index: usize,
-    
+
     // Data - Keys
     pub all_keys: Vec<KeyInfo>,
     pub scan_result: Vec<KeyInfo>,
@@ -85,8 +87,8 @@ pub struct App {
     pub info_scroll: usize,
     pub info_search_active: bool,
     pub info_search_text: String,
-    pub info_search_matches: Vec<usize>,  // Line indices that match
-    pub info_search_current: usize,       // Current match index
+    pub info_search_matches: Vec<usize>, // Line indices that match
+    pub info_search_current: usize,      // Current match index
 
     // Data - Slowlog
     pub slowlogs: Vec<crate::model::SlowlogEntry>,
@@ -124,16 +126,16 @@ pub struct App {
     pub pubsub_subscribe_input: String,
     pub pubsub_messages: Vec<crate::model::PubSubMessage>,
     pub pubsub_task: Option<tokio::task::JoinHandle<()>>,
-    
+
     pub should_quit: bool,
-    
+
     // Resources Modal
     pub resources: Vec<ResourceItem>,
     pub command_text: String,
     pub command_suggestions: Vec<ResourceItem>,
     pub command_suggestion_selected: usize,
     pub command_preview: Option<String>,
-    
+
     // Describe Data
     pub describe_data: KeyValue,
     pub describe_scroll: usize,
@@ -141,7 +143,7 @@ pub struct App {
     // Confirm Action
     pub pending_action: Option<PendingAction>,
     pub last_key_press: Option<(crossterm::event::KeyCode, std::time::Instant)>,
-    
+
     // Redis
     pub client: Option<redis::Client>,
     pub connection: Option<redis::aio::MultiplexedConnection>,
@@ -150,16 +152,56 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let resources = vec![
-            ResourceItem { name: "Servers".to_string(), command: "servers".to_string(), description: "Manage server connections" .to_string()},
-            ResourceItem { name: "Keys".to_string(), command: "keys".to_string(), description: "Browse all keys" .to_string()},
-            ResourceItem { name: "Streams".to_string(), command: "streams".to_string(), description: "Redis Streams" .to_string()},
-            ResourceItem { name: "PubSub".to_string(), command: "pubsub".to_string(), description: "Pub/Sub channels" .to_string()},
-            ResourceItem { name: "Clients".to_string(), command: "clients".to_string(), description: "Connected clients" .to_string()},
-            ResourceItem { name: "Monitor".to_string(), command: "monitor".to_string(), description: "Real-time command monitor" .to_string()},
-            ResourceItem { name: "Info".to_string(), command: "info".to_string(), description: "Server information" .to_string()},
-            ResourceItem { name: "Config".to_string(), command: "config".to_string(), description: "Redis configuration" .to_string()},
-            ResourceItem { name: "Slowlog".to_string(), command: "slowlog".to_string(), description: "Slow query log" .to_string()},
-            ResourceItem { name: "ACL".to_string(), command: "acl".to_string(), description: "Access Control List" .to_string()},
+            ResourceItem {
+                name: "Servers".to_string(),
+                command: "servers".to_string(),
+                description: "Manage server connections".to_string(),
+            },
+            ResourceItem {
+                name: "Keys".to_string(),
+                command: "keys".to_string(),
+                description: "Browse all keys".to_string(),
+            },
+            ResourceItem {
+                name: "Streams".to_string(),
+                command: "streams".to_string(),
+                description: "Redis Streams".to_string(),
+            },
+            ResourceItem {
+                name: "PubSub".to_string(),
+                command: "pubsub".to_string(),
+                description: "Pub/Sub channels".to_string(),
+            },
+            ResourceItem {
+                name: "Clients".to_string(),
+                command: "clients".to_string(),
+                description: "Connected clients".to_string(),
+            },
+            ResourceItem {
+                name: "Monitor".to_string(),
+                command: "monitor".to_string(),
+                description: "Real-time command monitor".to_string(),
+            },
+            ResourceItem {
+                name: "Info".to_string(),
+                command: "info".to_string(),
+                description: "Server information".to_string(),
+            },
+            ResourceItem {
+                name: "Config".to_string(),
+                command: "config".to_string(),
+                description: "Redis configuration".to_string(),
+            },
+            ResourceItem {
+                name: "Slowlog".to_string(),
+                command: "slowlog".to_string(),
+                description: "Slow query log".to_string(),
+            },
+            ResourceItem {
+                name: "ACL".to_string(),
+                command: "acl".to_string(),
+                description: "Access Control List".to_string(),
+            },
         ];
 
         // Load existing config
@@ -243,23 +285,29 @@ impl App {
     pub fn add_server_from_dialog(&mut self) -> Result<()> {
         let name = self.server_dialog_state.name.trim().to_string();
         let uri = self.server_dialog_state.uri.trim().to_string();
-        
+
         if name.is_empty() {
-            self.server_dialog_state.set_error("Name cannot be empty".to_string());
+            self.server_dialog_state
+                .set_error("Name cannot be empty".to_string());
             return Ok(());
         }
-        
+
         if uri.is_empty() {
-            self.server_dialog_state.set_error("URI cannot be empty".to_string());
+            self.server_dialog_state
+                .set_error("URI cannot be empty".to_string());
             return Ok(());
         }
 
         // Add server to config and save
         self.tredis_config.add_server(name.clone(), uri.clone())?;
-        
+
         // Set as current server
-        self.current_server = Some(ServerConfig { name, uri, info: None });
-        
+        self.current_server = Some(ServerConfig {
+            name,
+            uri,
+            info: None,
+        });
+
         Ok(())
     }
 
@@ -268,7 +316,7 @@ impl App {
         // Parse the URI - supports redis:// or rediss:// (TLS)
         // Format: redis[s]://[user:password@]host[:port][/db]
         let uri = uri.trim();
-        
+
         // Check for TLS (rediss://) vs plain (redis://)
         let (tls, rest) = if let Some(rest) = uri.strip_prefix("rediss://") {
             (true, rest)
@@ -278,9 +326,9 @@ impl App {
             // No prefix, assume plain
             (false, uri)
         };
-        
+
         self.connection_config.tls = tls;
-        
+
         // Check for auth (user:password@)
         let (auth_part, host_part) = if let Some(at_pos) = rest.rfind('@') {
             let (auth, host) = rest.split_at(at_pos);
@@ -288,7 +336,7 @@ impl App {
         } else {
             (None, rest)
         };
-        
+
         // Parse auth if present
         if let Some(auth) = auth_part {
             if let Some(colon_pos) = auth.find(':') {
@@ -300,7 +348,7 @@ impl App {
                 self.connection_config.password = Some(auth.to_string());
             }
         }
-        
+
         // Parse host:port/db
         let (host_port, db) = if let Some(slash_pos) = host_part.find('/') {
             let (hp, d) = host_part.split_at(slash_pos);
@@ -308,7 +356,7 @@ impl App {
         } else {
             (host_part, 0)
         };
-        
+
         // Parse host and port
         if let Some(colon_pos) = host_port.rfind(':') {
             let (host, port_str) = host_port.split_at(colon_pos);
@@ -318,9 +366,9 @@ impl App {
             self.connection_config.host = host_port.to_string();
             self.connection_config.port = 6379;
         }
-        
+
         self.connection_config.db = db;
-        
+
         Ok(())
     }
 
@@ -386,7 +434,7 @@ impl App {
     }
 
     pub fn describe_go_to_bottom(&mut self, _visible_lines: usize) {
-        self.describe_scroll = 999999; 
+        self.describe_scroll = 999999;
     }
 
     pub async fn fetch_info(&mut self) -> Result<()> {
@@ -410,7 +458,11 @@ impl App {
 
     pub async fn fetch_slowlog(&mut self) -> Result<()> {
         if let Some(con) = &mut self.connection {
-            let raw_logs: Vec<(i64, i64, i64, Vec<String>)> = redis::cmd("SLOWLOG").arg("GET").arg(100).query_async(con).await?;
+            let raw_logs: Vec<(i64, i64, i64, Vec<String>)> = redis::cmd("SLOWLOG")
+                .arg("GET")
+                .arg(100)
+                .query_async(con)
+                .await?;
             let mut slowlogs = Vec::new();
 
             for (id, timestamp, duration, cmd_parts) in raw_logs {
@@ -428,8 +480,15 @@ impl App {
 
     pub async fn fetch_configs(&mut self) -> Result<()> {
         if let Some(con) = &mut self.connection {
-            let config_map: HashMap<String, String> = redis::cmd("CONFIG").arg("GET").arg("*").query_async(con).await?;
-            let mut configs: Vec<_> = config_map.into_iter().map(|(k, v)| crate::model::ConfigEntry { key: k, value: v }).collect();
+            let config_map: HashMap<String, String> = redis::cmd("CONFIG")
+                .arg("GET")
+                .arg("*")
+                .query_async(con)
+                .await?;
+            let mut configs: Vec<_> = config_map
+                .into_iter()
+                .map(|(k, v)| crate::model::ConfigEntry { key: k, value: v })
+                .collect();
             configs.sort_by(|a, b| a.key.cmp(&b.key));
             self.configs = configs;
         }
@@ -447,7 +506,11 @@ impl App {
                     let name = parts[1].to_string();
                     let status = parts[2].to_string();
                     let rules = parts[3..].join(" ");
-                    acls.push(crate::model::AclUser { name, status, rules });
+                    acls.push(crate::model::AclUser {
+                        name,
+                        status,
+                        rules,
+                    });
                 }
             }
             self.acls = acls;
@@ -458,23 +521,29 @@ impl App {
     pub async fn connect(&mut self) -> Result<()> {
         use std::time::Duration;
         use tokio::time::timeout;
-        
+
         // Close existing connection first (should already be closed, but just in case)
         drop(self.connection.take());
         drop(self.client.take());
-        
+
         // Use the original URI from current_server if available (preserves auth, TLS, etc.)
         let url = if let Some(ref server) = self.current_server {
             server.uri.clone()
         } else {
             // Fallback: Build URL from connection config
-            let scheme = if self.connection_config.tls { "rediss" } else { "redis" };
-            
+            let scheme = if self.connection_config.tls {
+                "rediss"
+            } else {
+                "redis"
+            };
+
             if let Some(ref password) = self.connection_config.password {
                 if let Some(ref user) = self.connection_config.user {
                     format!(
                         "{}://{}:{}@{}:{}/{}",
-                        scheme, user, password,
+                        scheme,
+                        user,
+                        password,
                         self.connection_config.host,
                         self.connection_config.port,
                         self.connection_config.db
@@ -482,7 +551,8 @@ impl App {
                 } else {
                     format!(
                         "{}://:{}@{}:{}/{}",
-                        scheme, password,
+                        scheme,
+                        password,
                         self.connection_config.host,
                         self.connection_config.port,
                         self.connection_config.db
@@ -498,17 +568,17 @@ impl App {
                 )
             }
         };
-        
+
         let client = redis::Client::open(url)?;
-        
+
         // Use timeout for connection (30 seconds for TLS connections which can be slow)
         let connection = timeout(
             Duration::from_secs(30),
-            client.get_multiplexed_async_connection()
+            client.get_multiplexed_async_connection(),
         )
         .await
         .map_err(|_| anyhow::anyhow!("Connection timed out after 30 seconds"))??;
-        
+
         self.client = Some(client);
         self.connection = Some(connection);
         Ok(())
@@ -518,20 +588,20 @@ impl App {
     pub async fn detect_server_info(uri: &str) -> Result<ServerInfo> {
         use std::time::Duration;
         use tokio::time::timeout;
-        
+
         let client = redis::Client::open(uri)?;
         let mut con = timeout(
             Duration::from_secs(30),
-            client.get_multiplexed_async_connection()
+            client.get_multiplexed_async_connection(),
         )
         .await
         .map_err(|_| anyhow::anyhow!("Connection timed out after 30 seconds"))??;
-        
+
         let mut info = ServerInfo::default();
-        
+
         // Get basic INFO
         let info_str: String = redis::cmd("INFO").query_async(&mut con).await?;
-        
+
         for line in info_str.lines() {
             if let Some((key, val)) = line.split_once(':') {
                 match key {
@@ -547,35 +617,35 @@ impl App {
                 }
             }
         }
-        
+
         // If already detected as Sentinel from INFO, return early
         if info.server_type == ServerType::Sentinel {
             return Ok(info);
         }
-        
+
         // Check if it's a Sentinel by command (fallback)
         let sentinel_check: Result<String, _> = redis::cmd("SENTINEL")
             .arg("MASTERS")
             .query_async(&mut con)
             .await;
-        
+
         if sentinel_check.is_ok() {
             info.server_type = ServerType::Sentinel;
             info.role = "sentinel".to_string();
             return Ok(info);
         }
-        
+
         // Check if it's a Cluster
         let cluster_info: Result<String, _> = redis::cmd("CLUSTER")
             .arg("INFO")
             .query_async(&mut con)
             .await;
-        
+
         if let Ok(cluster_str) = cluster_info {
             // Parse cluster info
             let mut cluster_enabled = false;
             let mut cluster_size = 0usize;
-            
+
             for line in cluster_str.lines() {
                 if let Some((key, val)) = line.split_once(':') {
                     match key {
@@ -591,14 +661,14 @@ impl App {
                     }
                 }
             }
-            
+
             if cluster_enabled {
                 info.server_type = ServerType::Cluster;
                 info.cluster_size = Some(cluster_size);
                 return Ok(info);
             }
         }
-        
+
         // Default to Standalone
         info.server_type = ServerType::Standalone;
         Ok(info)
@@ -606,7 +676,12 @@ impl App {
 
     /// Update server info in config for a specific server
     pub fn update_server_info(&mut self, server_name: &str, server_info: ServerInfo) -> Result<()> {
-        if let Some(server) = self.tredis_config.servers.iter_mut().find(|s| s.name == server_name) {
+        if let Some(server) = self
+            .tredis_config
+            .servers
+            .iter_mut()
+            .find(|s| s.name == server_name)
+        {
             server.info = Some(server_info);
         }
         self.tredis_config.save()?;
@@ -627,11 +702,11 @@ impl App {
 
             let mut cmd = redis::cmd("SCAN");
             cmd.arg(self.pagination.cursor);
-            
+
             if let Some(p) = &pattern {
                 cmd.arg("MATCH").arg(format!("*{}*", p));
             }
-            
+
             cmd.arg("COUNT").arg(self.pagination.page_size);
 
             let (next_cursor, keys): (u64, Vec<String>) = cmd.query_async(con).await?;
@@ -641,7 +716,7 @@ impl App {
             for key in keys {
                 let key_type: String = con.key_type(&key).await.unwrap_or("unknown".to_string());
                 let ttl: i64 = con.ttl(&key).await.unwrap_or(-1);
-                let memory = 0; 
+                let memory = 0;
 
                 key_infos.push(KeyInfo {
                     key,
@@ -650,7 +725,7 @@ impl App {
                     memory_usage: memory,
                 });
             }
-            
+
             self.all_keys = key_infos;
             self.apply_filter();
         }
@@ -661,7 +736,7 @@ impl App {
         if self.pagination.next_cursor != 0 {
             self.pagination.cursor_stack.push(self.pagination.cursor);
             self.pagination.cursor = self.pagination.next_cursor;
-            
+
             let pattern = if self.filter_text.is_empty() {
                 None
             } else {
@@ -675,7 +750,7 @@ impl App {
     pub async fn prev_page(&mut self) -> Result<()> {
         if let Some(prev_cursor) = self.pagination.cursor_stack.pop() {
             self.pagination.cursor = prev_cursor;
-            
+
             let pattern = if self.filter_text.is_empty() {
                 None
             } else {
@@ -691,7 +766,8 @@ impl App {
             self.scan_result = self.all_keys.clone();
         } else {
             let filter = self.filter_text.to_lowercase();
-            self.scan_result = self.all_keys
+            self.scan_result = self
+                .all_keys
                 .iter()
                 .filter(|k| k.key.to_lowercase().contains(&filter))
                 .cloned()
@@ -699,19 +775,19 @@ impl App {
         }
 
         if self.selected_key_index >= self.scan_result.len() {
-             if !self.scan_result.is_empty() {
-                 self.selected_key_index = self.scan_result.len() - 1;
-             } else {
-                 self.selected_key_index = 0;
-             }
+            if !self.scan_result.is_empty() {
+                self.selected_key_index = self.scan_result.len() - 1;
+            } else {
+                self.selected_key_index = 0;
+            }
         }
     }
 
     pub async fn delete_key(&mut self) -> Result<()> {
         if let Some(pending) = &self.pending_action {
-             if let Some(con) = &mut self.connection {
-                 let _: () = con.del(&pending.key).await?;
-             }
+            if let Some(con) = &mut self.connection {
+                let _: () = con.del(&pending.key).await?;
+            }
         }
         Ok(())
     }
@@ -720,7 +796,7 @@ impl App {
         if self.scan_result.is_empty() {
             return Ok(());
         }
-        
+
         let key_info = &self.scan_result[self.selected_key_index];
         let key = &key_info.key;
         let key_type = &key_info.key_type;
@@ -728,40 +804,54 @@ impl App {
         if let Some(con) = &mut self.connection {
             self.describe_data = match key_type.as_str() {
                 "string" => {
-                    let val: String = con.get(key).await.unwrap_or_else(|e| format!("Error: {}", e));
+                    let val: String = con
+                        .get(key)
+                        .await
+                        .unwrap_or_else(|e| format!("Error: {}", e));
                     KeyValue::String(val)
-                },
+                }
                 "list" => {
                     let val: Vec<String> = con.lrange(key, 0, -1).await.unwrap_or_default();
                     KeyValue::List(val)
-                },
+                }
                 "set" => {
                     let val: Vec<String> = con.smembers(key).await.unwrap_or_default();
                     KeyValue::Set(val)
-                },
+                }
                 "zset" => {
-                    let val: Vec<(String, f64)> = con.zrange_withscores(key, 0, -1).await.unwrap_or_default();
+                    let val: Vec<(String, f64)> =
+                        con.zrange_withscores(key, 0, -1).await.unwrap_or_default();
                     KeyValue::ZSet(val)
-                },
+                }
                 "hash" => {
                     let val: HashMap<String, String> = con.hgetall(key).await.unwrap_or_default();
                     KeyValue::Hash(val)
-                },
+                }
                 "stream" => {
-                    let entries: Vec<(String, Vec<(String, String)>)> = 
-                        redis::cmd("XRANGE").arg(key).arg("-").arg("+")
-                        .query_async(con).await.unwrap_or_default();
-                    
-                    let stream_entries: Vec<StreamEntry> = entries.into_iter().map(|(id, fields)| {
-                        let mut field_map = HashMap::new();
-                        for (k, v) in fields {
-                            field_map.insert(k, v);
-                        }
-                        StreamEntry { id, fields: field_map }
-                    }).collect();
-                    
+                    let entries: Vec<(String, Vec<(String, String)>)> = redis::cmd("XRANGE")
+                        .arg(key)
+                        .arg("-")
+                        .arg("+")
+                        .query_async(con)
+                        .await
+                        .unwrap_or_default();
+
+                    let stream_entries: Vec<StreamEntry> = entries
+                        .into_iter()
+                        .map(|(id, fields)| {
+                            let mut field_map = HashMap::new();
+                            for (k, v) in fields {
+                                field_map.insert(k, v);
+                            }
+                            StreamEntry {
+                                id,
+                                fields: field_map,
+                            }
+                        })
+                        .collect();
+
                     KeyValue::Stream(stream_entries)
-                },
+                }
                 _ => KeyValue::Error(format!("Unsupported type: {}", key_type)),
             };
         }
@@ -772,23 +862,33 @@ impl App {
         if self.streams.is_empty() {
             return Ok(());
         }
-        
+
         let stream = &self.streams[self.selected_stream_index];
         let stream_name = &stream.name;
 
         if let Some(con) = &mut self.connection {
-            let entries: Vec<(String, Vec<(String, String)>)> = 
-                redis::cmd("XRANGE").arg(stream_name).arg("-").arg("+")
-                .query_async(con).await.unwrap_or_default();
-            
-            let stream_entries: Vec<StreamEntry> = entries.into_iter().map(|(id, fields)| {
-                let mut field_map = HashMap::new();
-                for (k, v) in fields {
-                    field_map.insert(k, v);
-                }
-                StreamEntry { id, fields: field_map }
-            }).collect();
-            
+            let entries: Vec<(String, Vec<(String, String)>)> = redis::cmd("XRANGE")
+                .arg(stream_name)
+                .arg("-")
+                .arg("+")
+                .query_async(con)
+                .await
+                .unwrap_or_default();
+
+            let stream_entries: Vec<StreamEntry> = entries
+                .into_iter()
+                .map(|(id, fields)| {
+                    let mut field_map = HashMap::new();
+                    for (k, v) in fields {
+                        field_map.insert(k, v);
+                    }
+                    StreamEntry {
+                        id,
+                        fields: field_map,
+                    }
+                })
+                .collect();
+
             self.describe_data = KeyValue::Stream(stream_entries);
         }
         Ok(())
@@ -804,12 +904,13 @@ impl App {
 
     pub fn update_command_suggestions(&mut self) {
         let typed = self.command_text.to_lowercase();
-        self.command_suggestions = self.resources
+        self.command_suggestions = self
+            .resources
             .iter()
             .filter(|r| r.command.to_lowercase().contains(&typed))
             .cloned()
             .collect();
-        
+
         if self.command_suggestion_selected >= self.command_suggestions.len() {
             self.command_suggestion_selected = 0;
         }
@@ -881,18 +982,14 @@ impl App {
     }
 
     pub fn next(&mut self) {
-        if !self.scan_result.is_empty() {
-            if self.selected_key_index < self.scan_result.len() - 1 {
-                self.selected_key_index += 1;
-            }
+        if !self.scan_result.is_empty() && self.selected_key_index < self.scan_result.len() - 1 {
+            self.selected_key_index += 1;
         }
     }
 
     pub fn previous(&mut self) {
-        if !self.scan_result.is_empty() {
-            if self.selected_key_index > 0 {
-                self.selected_key_index -= 1;
-            }
+        if !self.scan_result.is_empty() && self.selected_key_index > 0 {
+            self.selected_key_index -= 1;
         }
     }
 
@@ -913,18 +1010,40 @@ impl App {
             for key in keys {
                 let key_type: String = redis::cmd("TYPE").arg(&key).query_async(con).await?;
                 if key_type == "stream" {
-                    let length: i64 = redis::cmd("XLEN").arg(&key).query_async(con).await.unwrap_or(0);
-                    
-                    // Get first and last entry IDs
-                    let first: Vec<(String, Vec<(String, String)>)> = 
-                        redis::cmd("XRANGE").arg(&key).arg("-").arg("+").arg("COUNT").arg(1)
-                        .query_async(con).await.unwrap_or_default();
-                    let last: Vec<(String, Vec<(String, String)>)> = 
-                        redis::cmd("XREVRANGE").arg(&key).arg("+").arg("-").arg("COUNT").arg(1)
-                        .query_async(con).await.unwrap_or_default();
+                    let length: i64 = redis::cmd("XLEN")
+                        .arg(&key)
+                        .query_async(con)
+                        .await
+                        .unwrap_or(0);
 
-                    let first_entry_id = first.get(0).map(|e| e.0.clone()).unwrap_or_else(|| "-".to_string());
-                    let last_entry_id = last.get(0).map(|e| e.0.clone()).unwrap_or_else(|| "-".to_string());
+                    // Get first and last entry IDs
+                    let first: Vec<(String, Vec<(String, String)>)> = redis::cmd("XRANGE")
+                        .arg(&key)
+                        .arg("-")
+                        .arg("+")
+                        .arg("COUNT")
+                        .arg(1)
+                        .query_async(con)
+                        .await
+                        .unwrap_or_default();
+                    let last: Vec<(String, Vec<(String, String)>)> = redis::cmd("XREVRANGE")
+                        .arg(&key)
+                        .arg("+")
+                        .arg("-")
+                        .arg("COUNT")
+                        .arg(1)
+                        .query_async(con)
+                        .await
+                        .unwrap_or_default();
+
+                    let first_entry_id = first
+                        .first()
+                        .map(|e| e.0.clone())
+                        .unwrap_or_else(|| "-".to_string());
+                    let last_entry_id = last
+                        .first()
+                        .map(|e| e.0.clone())
+                        .unwrap_or_else(|| "-".to_string());
 
                     streams.push(crate::model::StreamInfo {
                         name: key,
@@ -944,11 +1063,11 @@ impl App {
             // PUBSUB CHANNELS returns only channels with active subscribers
             let channels: Vec<String> = redis::cmd("PUBSUB")
                 .arg("CHANNELS")
-                .arg("*")  // Pattern to match all channels
+                .arg("*") // Pattern to match all channels
                 .query_async(con)
                 .await
                 .unwrap_or_default();
-            
+
             let mut pubsub_channels = Vec::new();
 
             for channel in channels {
@@ -959,7 +1078,7 @@ impl App {
                     .query_async(con)
                     .await
                     .unwrap_or_default();
-                
+
                 let subscribers = if numsub.len() >= 2 {
                     match &numsub[1] {
                         redis::Value::Int(n) => *n,
@@ -981,5 +1100,4 @@ impl App {
         }
         Ok(())
     }
-
 }

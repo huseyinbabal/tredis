@@ -32,12 +32,8 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
                 let type_str = match info.server_type {
                     ServerType::Standalone => "Standalone",
                     ServerType::Cluster => {
-                        if let Some(size) = info.cluster_size {
-                            // We'll just show "Cluster" - size shown in describe
-                            "Cluster"
-                        } else {
-                            "Cluster"
-                        }
+                        // Cluster size shown in describe
+                        "Cluster"
                     }
                     ServerType::Sentinel => "Sentinel",
                 };
