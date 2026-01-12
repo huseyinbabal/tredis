@@ -27,12 +27,14 @@ pub struct ResourceItem {
 pub enum PendingActionType {
     DeleteKey,
     DeleteServer,
+    DeletePattern,
 }
 
 pub struct PendingAction {
     pub key: String,
     pub action_type: PendingActionType,
     pub selected_yes: bool,
+    pub matched_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -714,6 +716,53 @@ impl App {
              }
         }
         Ok(())
+    }
+
+    /// Scan all keys matching a pattern using SCAN command
+    pub async fn scan_keys_by_pattern(&mut self, pattern: &str) -> Result<Vec<String>> {
+        let mut matched_keys = Vec::new();
+
+        if let Some(con) = &mut self.connection {
+            let mut cursor: u64 = 0;
+            loop {
+                let (next_cursor, keys): (u64, Vec<String>) = redis::cmd("SCAN")
+                    .arg(cursor)
+                    .arg("MATCH")
+                    .arg(pattern)
+                    .arg("COUNT")
+                    .arg(1000)
+                    .query_async(con)
+                    .await?;
+
+                matched_keys.extend(keys);
+                cursor = next_cursor;
+
+                if cursor == 0 {
+                    break;
+                }
+            }
+        }
+
+        Ok(matched_keys)
+    }
+
+    /// Delete all keys matching the pattern stored in pending_action
+    pub async fn delete_keys_by_pattern(&mut self) -> Result<u64> {
+        let mut deleted_count: u64 = 0;
+
+        if let Some(pending) = &self.pending_action {
+            if let Some(con) = &mut self.connection {
+                // Delete in batches to avoid blocking Redis for too long
+                for chunk in pending.matched_keys.chunks(100) {
+                    if !chunk.is_empty() {
+                        let count: u64 = con.del(chunk).await?;
+                        deleted_count += count;
+                    }
+                }
+            }
+        }
+
+        Ok(deleted_count)
     }
 
     pub async fn fetch_key_value(&mut self) -> Result<()> {

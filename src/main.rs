@@ -724,6 +724,7 @@ async fn main() -> Result<()> {
                                             key: server.name.clone(),
                                             action_type: PendingActionType::DeleteServer,
                                             selected_yes: false,
+                                            matched_keys: Vec::new(),
                                         });
                                         app.mode = Mode::Confirm;
                                     }
@@ -734,8 +735,31 @@ async fn main() -> Result<()> {
                                             key: key_info.key.clone(),
                                             action_type: PendingActionType::DeleteKey,
                                             selected_yes: false,
+                                            matched_keys: Vec::new(),
                                         });
                                         app.mode = Mode::Confirm;
+                                    }
+                                }
+                                KeyCode::Char('D') => {
+                                    // Delete keys by pattern (in keys view, when filter is active)
+                                    if app.active_resource == "keys" && !app.filter_text.is_empty() {
+                                        let pattern = format!("*{}*", app.filter_text);
+                                        match app.scan_keys_by_pattern(&pattern).await {
+                                            Ok(matched_keys) => {
+                                                if !matched_keys.is_empty() {
+                                                    app.pending_action = Some(PendingAction {
+                                                        key: pattern,
+                                                        action_type: PendingActionType::DeletePattern,
+                                                        selected_yes: false,
+                                                        matched_keys,
+                                                    });
+                                                    app.mode = Mode::Confirm;
+                                                }
+                                            }
+                                            Err(e) => {
+                                                eprintln!("Error scanning keys: {}", e);
+                                            }
+                                        }
                                     }
                                 }
                                 KeyCode::Char('a') => {
@@ -851,6 +875,19 @@ async fn main() -> Result<()> {
                                                         app.current_server = None;
                                                     }
                                                 }
+                                            }
+                                            PendingActionType::DeletePattern => {
+                                                match app.delete_keys_by_pattern().await {
+                                                    Ok(count) => {
+                                                        log!(LogLevel::Info, "Deleted {} keys by pattern", count);
+                                                    }
+                                                    Err(e) => {
+                                                        eprintln!("Error deleting keys by pattern: {}", e);
+                                                    }
+                                                }
+                                                // Clear filter and refresh keys
+                                                app.filter_text.clear();
+                                                let _ = app.fetch_keys(None).await;
                                             }
                                         }
                                     }
