@@ -69,8 +69,8 @@ Download the latest release from the [Releases page](https://github.com/huseyinb
 |----------|--------------|----------|
 | **macOS** | Apple Silicon (M1/M2/M3) | `tredis-aarch64-apple-darwin.tar.gz` |
 | **macOS** | Intel | `tredis-x86_64-apple-darwin.tar.gz` |
-| **Linux** | x86_64 | `tredis-x86_64-unknown-linux-gnu.tar.gz` |
-| **Linux** | ARM64 | `tredis-aarch64-unknown-linux-gnu.tar.gz` |
+| **Linux** | x86_64 (musl) | `tredis-x86_64-unknown-linux-musl.tar.gz` |
+| **Linux** | ARM64 (musl) | `tredis-aarch64-unknown-linux-musl.tar.gz` |
 | **Windows** | x86_64 | `tredis-x86_64-pc-windows-msvc.zip` |
 
 #### Quick Install (macOS/Linux)
@@ -84,12 +84,12 @@ sudo mv tredis /usr/local/bin/
 curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-x86_64-apple-darwin.tar.gz | tar xz
 sudo mv tredis /usr/local/bin/
 
-# Linux x86_64
-curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-x86_64-unknown-linux-gnu.tar.gz | tar xz
+# Linux x86_64 (musl - works on Alpine, Void, etc.)
+curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-x86_64-unknown-linux-musl.tar.gz | tar xz
 sudo mv tredis /usr/local/bin/
 
-# Linux ARM64
-curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-aarch64-unknown-linux-gnu.tar.gz | tar xz
+# Linux ARM64 (musl - works on Alpine, Void, etc.)
+curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-aarch64-unknown-linux-musl.tar.gz | tar xz
 sudo mv tredis /usr/local/bin/
 ```
 
