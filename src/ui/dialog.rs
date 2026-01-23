@@ -32,6 +32,13 @@ fn render_confirm_dialog(f: &mut Frame, app: &App) {
             "Delete Server",
             format!("Are you sure you want to delete server '{}'?", pending.key),
         ),
+        PendingActionType::DeleteSelected => (
+            "Delete Selected Keys",
+            format!(
+                "Delete {} selected keys?",
+                pending.matched_keys.len()
+            ),
+        ),
     };
 
     let title_color = Color::Red;
