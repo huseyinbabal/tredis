@@ -38,12 +38,22 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         f.render_widget(paragraph, area);
     }
 
-    let title = format!(
-        " Keys ({}/{}) [Page: {}] ",
-        app.scan_result.len(),
-        app.pagination.total_keys,
-        app.pagination.cursor_stack.len() + 1
-    );
+    let title = if app.selected_keys.is_empty() {
+        format!(
+            " Keys ({}/{}) [Page: {}] ",
+            app.scan_result.len(),
+            app.pagination.total_keys,
+            app.pagination.cursor_stack.len() + 1
+        )
+    } else {
+        format!(
+            " Keys ({}/{}) [Page: {}] - {} selected ",
+            app.scan_result.len(),
+            app.pagination.total_keys,
+            app.pagination.cursor_stack.len() + 1,
+            app.selected_keys.len()
+        )
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -59,7 +69,7 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
     let inner_area = block.inner(table_area);
     f.render_widget(block, table_area);
 
-    let header_cells = ["Key", "Type", "TTL", "Memory"].iter().map(|h| {
+    let header_cells = [" ", "Key", "Type", "TTL", "Memory"].iter().map(|h| {
         Cell::from(*h).style(
             Style::default()
                 .fg(Color::Yellow)
@@ -69,7 +79,16 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
     let header = Row::new(header_cells).height(1);
 
     let rows = app.scan_result.iter().map(|item| {
+        let is_selected = app.selected_keys.contains(&item.key);
+        let checkbox = if is_selected { "[x]" } else { "[ ]" };
+        let checkbox_style = if is_selected {
+            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(Color::DarkGray)
+        };
+
         let cells = vec![
+            Cell::from(checkbox).style(checkbox_style),
             Cell::from(item.key.clone()),
             Cell::from(item.key_type.clone()).style(get_type_style(&item.key_type)),
             Cell::from(item.ttl.to_string()),
@@ -79,10 +98,11 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
     });
 
     let widths = [
-        Constraint::Percentage(50),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Percentage(20),
+        Constraint::Length(3),      // Checkbox
+        Constraint::Percentage(47), // Key
+        Constraint::Percentage(15), // Type
+        Constraint::Percentage(15), // TTL
+        Constraint::Percentage(18), // Memory
     ];
 
     let table = Table::new(rows, widths).header(header).row_highlight_style(

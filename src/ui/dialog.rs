@@ -32,12 +32,11 @@ fn render_confirm_dialog(f: &mut Frame, app: &App) {
             "Delete Server",
             format!("Are you sure you want to delete server '{}'?", pending.key),
         ),
-        PendingActionType::DeletePattern => (
-            "Delete Keys by Pattern",
+        PendingActionType::DeleteSelected => (
+            "Delete Selected Keys",
             format!(
-                "Delete {} keys matching '{}'?",
-                pending.matched_keys.len(),
-                pending.key
+                "Delete {} selected keys?",
+                pending.matched_keys.len()
             ),
         ),
     };

@@ -343,6 +343,10 @@ async fn main() -> Result<()> {
                                     if app.active_resource == "info" && !app.info_search_text.is_empty() {
                                         app.clear_info_search();
                                     }
+                                    // Clear key selection if any keys are selected
+                                    else if app.active_resource == "keys" && !app.selected_keys.is_empty() {
+                                        app.clear_key_selection();
+                                    }
                                     // Stop stream consumer if active
                                     else if app.stream_active {
                                         app.stop_stream_consumer();
@@ -728,8 +732,20 @@ async fn main() -> Result<()> {
                                         });
                                         app.mode = Mode::Confirm;
                                     }
-                                    // Delete key (in keys view)
-                                    else if !app.scan_result.is_empty() {
+                                    // Delete selected keys (in keys view, if any selected)
+                                    else if app.active_resource == "keys" && !app.selected_keys.is_empty() {
+                                        let selected_count = app.selected_keys.len();
+                                        let selected_list: Vec<String> = app.selected_keys.iter().cloned().collect();
+                                        app.pending_action = Some(PendingAction {
+                                            key: format!("{} keys", selected_count),
+                                            action_type: PendingActionType::DeleteSelected,
+                                            selected_yes: false,
+                                            matched_keys: selected_list,
+                                        });
+                                        app.mode = Mode::Confirm;
+                                    }
+                                    // Delete single key (in keys view, if none selected)
+                                    else if app.active_resource == "keys" && !app.scan_result.is_empty() {
                                         let key_info = &app.scan_result[app.selected_key_index];
                                         app.pending_action = Some(PendingAction {
                                             key: key_info.key.clone(),
@@ -740,26 +756,16 @@ async fn main() -> Result<()> {
                                         app.mode = Mode::Confirm;
                                     }
                                 }
-                                KeyCode::Char('D') => {
-                                    // Delete keys by pattern (in keys view, when filter is active)
-                                    if app.active_resource == "keys" && !app.filter_text.is_empty() {
-                                        let pattern = format!("*{}*", app.filter_text);
-                                        match app.scan_keys_by_pattern(&pattern).await {
-                                            Ok(matched_keys) => {
-                                                if !matched_keys.is_empty() {
-                                                    app.pending_action = Some(PendingAction {
-                                                        key: pattern,
-                                                        action_type: PendingActionType::DeletePattern,
-                                                        selected_yes: false,
-                                                        matched_keys,
-                                                    });
-                                                    app.mode = Mode::Confirm;
-                                                }
-                                            }
-                                            Err(e) => {
-                                                eprintln!("Error scanning keys: {}", e);
-                                            }
-                                        }
+                                KeyCode::Char(' ') => {
+                                    // Toggle selection on current key (in keys view)
+                                    if app.active_resource == "keys" && !app.scan_result.is_empty() {
+                                        app.toggle_key_selection();
+                                    }
+                                }
+                                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                    // Select all filtered keys (in keys view)
+                                    if app.active_resource == "keys" && !app.scan_result.is_empty() {
+                                        app.select_all_keys();
                                     }
                                 }
                                 KeyCode::Char('a') => {
@@ -876,18 +882,22 @@ async fn main() -> Result<()> {
                                                     }
                                                 }
                                             }
-                                            PendingActionType::DeletePattern => {
-                                                match app.delete_keys_by_pattern().await {
+                                            PendingActionType::DeleteSelected => {
+                                                match app.delete_selected_keys().await {
                                                     Ok(count) => {
-                                                        log!(LogLevel::Info, "Deleted {} keys by pattern", count);
+                                                        log!(LogLevel::Info, "Deleted {} selected keys", count);
                                                     }
                                                     Err(e) => {
-                                                        eprintln!("Error deleting keys by pattern: {}", e);
+                                                        eprintln!("Error deleting selected keys: {}", e);
                                                     }
                                                 }
-                                                // Clear filter and refresh keys
-                                                app.filter_text.clear();
-                                                let _ = app.fetch_keys(None).await;
+                                                // Refresh keys list
+                                                let pattern = if app.filter_text.is_empty() {
+                                                    None
+                                                } else {
+                                                    Some(app.filter_text.clone())
+                                                };
+                                                let _ = app.fetch_keys(pattern).await;
                                             }
                                         }
                                     }
@@ -987,6 +997,10 @@ async fn main() -> Result<()> {
                                     }
                                     if app.active_resource == "streams" && selected.command != "streams" {
                                         app.stop_stream_consumer();
+                                    }
+                                    // Clear key selection when switching away from keys
+                                    if app.active_resource == "keys" && selected.command != "keys" {
+                                        app.selected_keys.clear();
                                     }
                                     
                                     app.active_resource = selected.command.clone();
