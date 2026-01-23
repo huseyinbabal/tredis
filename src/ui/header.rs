@@ -164,7 +164,7 @@ fn render_keybindings_col1(f: &mut Frame, app: &App, area: Rect) {
 }
 
 fn render_keybindings_col2(f: &mut Frame, area: Rect) {
-    let bindings = vec![
+    let bindings = [
         ("<:>", "Command"),
         ("<q>", "Quit"),
         ("<ctrl-c>", "Force Quit"),

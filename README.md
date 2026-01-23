@@ -69,8 +69,8 @@ Download the latest release from the [Releases page](https://github.com/huseyinb
 |----------|--------------|----------|
 | **macOS** | Apple Silicon (M1/M2/M3) | `tredis-aarch64-apple-darwin.tar.gz` |
 | **macOS** | Intel | `tredis-x86_64-apple-darwin.tar.gz` |
-| **Linux** | x86_64 | `tredis-x86_64-unknown-linux-gnu.tar.gz` |
-| **Linux** | ARM64 | `tredis-aarch64-unknown-linux-gnu.tar.gz` |
+| **Linux** | x86_64 (musl) | `tredis-x86_64-unknown-linux-musl.tar.gz` |
+| **Linux** | ARM64 (musl) | `tredis-aarch64-unknown-linux-musl.tar.gz` |
 | **Windows** | x86_64 | `tredis-x86_64-pc-windows-msvc.zip` |
 
 #### Quick Install (macOS/Linux)
@@ -84,12 +84,12 @@ sudo mv tredis /usr/local/bin/
 curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-x86_64-apple-darwin.tar.gz | tar xz
 sudo mv tredis /usr/local/bin/
 
-# Linux x86_64
-curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-x86_64-unknown-linux-gnu.tar.gz | tar xz
+# Linux x86_64 (musl - works on Alpine, Void, etc.)
+curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-x86_64-unknown-linux-musl.tar.gz | tar xz
 sudo mv tredis /usr/local/bin/
 
-# Linux ARM64
-curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-aarch64-unknown-linux-gnu.tar.gz | tar xz
+# Linux ARM64 (musl - works on Alpine, Void, etc.)
+curl -sL https://github.com/huseyinbabal/tredis/releases/latest/download/tredis-aarch64-unknown-linux-musl.tar.gz | tar xz
 sudo mv tredis /usr/local/bin/
 ```
 
@@ -113,6 +113,12 @@ docker run --rm -it huseyinbabal/tredis
 
 # Connect to a specific Redis server
 docker run --rm -it huseyinbabal/tredis --host redis.example.com --port 6379
+
+# Using environment variables (recommended for containers)
+docker run --rm -it \
+  -e TREDIS_HOST=redis.example.com \
+  -e TREDIS_PORT=6379 \
+  huseyinbabal/tredis
 
 # Build locally
 docker build -t tredis .
@@ -161,6 +167,17 @@ tredis --host localhost --port 6379 --db 1
 # Enable debug logging
 tredis --log-level debug
 ```
+
+### CLI Options
+
+| Flag | ENV Variables | Default | Description |
+|------|---------------|---------|-------------|
+| `-H, --host` | `TREDIS_HOST`, `HOST` | `localhost` | Redis host |
+| `-p, --port` | `TREDIS_PORT`, `PORT` | `6379` | Redis port |
+| `-d, --db` | `TREDIS_DB`, `DB` | `0` | Redis database |
+| `-l, --log-level` | `TREDIS_LOG_LEVEL`, `LOG_LEVEL` | `off` | Log level (off, error, warn, info, debug) |
+
+> **Note:** CLI arguments take precedence over environment variables. `TREDIS_*` prefixed variables take precedence over non-prefixed ones.
 
 ### Adding a Server
 

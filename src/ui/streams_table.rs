@@ -132,11 +132,9 @@ fn render_stream_messages(f: &mut Frame, app: &App, area: Rect) {
         let msg = format!(
             "Waiting for messages on stream: {}\n\n\
             Consumer Group: {}\n\
-            Consumer Name: {}\n\n\
+            Consumer Name: tredis_{}\n\n\
             Press Esc to stop consuming",
-            stream_name,
-            app.stream_consumer_group,
-            format!("tredis_{}", hostname)
+            stream_name, app.stream_consumer_group, hostname
         );
         let empty_msg = Paragraph::new(msg)
             .style(Style::default().fg(Color::Yellow))

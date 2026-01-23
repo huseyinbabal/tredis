@@ -1,5 +1,5 @@
 use crate::app::App;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{TimeZone, Utc};
 use ratatui::{
     layout::{Alignment, Constraint, Rect},
     style::{Color, Modifier, Style},

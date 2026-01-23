@@ -1,2 +1,3 @@
 /target
 *.rdb
+codeql-db
