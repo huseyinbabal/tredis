@@ -6,7 +6,7 @@ use crate::ui::server_dialog::ServerDialogState;
 use crate::ui::splash::SplashState;
 use anyhow::Result;
 use redis::AsyncCommands;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum Mode {
@@ -29,12 +29,14 @@ pub struct ResourceItem {
 pub enum PendingActionType {
     DeleteKey,
     DeleteServer,
+    DeleteSelected,
 }
 
 pub struct PendingAction {
     pub key: String,
     pub action_type: PendingActionType,
     pub selected_yes: bool,
+    pub matched_keys: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -77,6 +79,7 @@ pub struct App {
     pub filter_active: bool,
     pub pagination: PaginationState,
     pub selected_key_index: usize,
+    pub selected_keys: HashSet<String>,  // Multi-select: tracks selected key names
 
     // Data - Clients
     pub clients: Vec<crate::model::ClientInfo>,
@@ -222,6 +225,7 @@ impl App {
             filter_active: false,
             pagination: PaginationState::default(),
             selected_key_index: 0,
+            selected_keys: HashSet::new(),
             clients: Vec::new(),
             selected_client_index: 0,
             info_data: Vec::new(),
@@ -736,6 +740,7 @@ impl App {
         if self.pagination.next_cursor != 0 {
             self.pagination.cursor_stack.push(self.pagination.cursor);
             self.pagination.cursor = self.pagination.next_cursor;
+            self.selected_keys.clear(); // Clear selection when changing pages
 
             let pattern = if self.filter_text.is_empty() {
                 None
@@ -750,6 +755,7 @@ impl App {
     pub async fn prev_page(&mut self) -> Result<()> {
         if let Some(prev_cursor) = self.pagination.cursor_stack.pop() {
             self.pagination.cursor = prev_cursor;
+            self.selected_keys.clear(); // Clear selection when changing pages
 
             let pattern = if self.filter_text.is_empty() {
                 None
@@ -774,6 +780,11 @@ impl App {
                 .collect();
         }
 
+        // Clear selection when filter changes - only keep selections that are still visible
+        self.selected_keys.retain(|key| {
+            self.scan_result.iter().any(|k| &k.key == key)
+        });
+
         if self.selected_key_index >= self.scan_result.len() {
             if !self.scan_result.is_empty() {
                 self.selected_key_index = self.scan_result.len() - 1;
@@ -790,6 +801,52 @@ impl App {
             }
         }
         Ok(())
+    }
+
+    /// Toggle selection of the currently highlighted key
+    pub fn toggle_key_selection(&mut self) {
+        if self.scan_result.is_empty() {
+            return;
+        }
+        let key = &self.scan_result[self.selected_key_index].key;
+        if self.selected_keys.contains(key) {
+            self.selected_keys.remove(key);
+        } else {
+            self.selected_keys.insert(key.clone());
+        }
+    }
+
+    /// Select all currently filtered/visible keys
+    pub fn select_all_keys(&mut self) {
+        for key_info in &self.scan_result {
+            self.selected_keys.insert(key_info.key.clone());
+        }
+    }
+
+    /// Clear all key selections
+    pub fn clear_key_selection(&mut self) {
+        self.selected_keys.clear();
+    }
+
+    /// Delete all selected keys
+    pub async fn delete_selected_keys(&mut self) -> Result<u64> {
+        let mut deleted_count: u64 = 0;
+
+        if let Some(con) = &mut self.connection {
+            let keys_to_delete: Vec<String> = self.selected_keys.iter().cloned().collect();
+            // Delete in batches to avoid blocking Redis for too long
+            for chunk in keys_to_delete.chunks(100) {
+                if !chunk.is_empty() {
+                    let count: u64 = con.del(chunk).await?;
+                    deleted_count += count;
+                }
+            }
+        }
+
+        // Clear selection after deletion
+        self.selected_keys.clear();
+
+        Ok(deleted_count)
     }
 
     pub async fn fetch_key_value(&mut self) -> Result<()> {
