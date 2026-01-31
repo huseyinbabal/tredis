@@ -828,11 +828,6 @@ impl App {
         self.selected_keys.clear();
     }
 
-    /// Check if a key is selected
-    pub fn is_key_selected(&self, key: &str) -> bool {
-        self.selected_keys.contains(key)
-    }
-
     /// Delete all selected keys
     pub async fn delete_selected_keys(&mut self) -> Result<u64> {
         let mut deleted_count: u64 = 0;

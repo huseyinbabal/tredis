@@ -69,7 +69,7 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
     let inner_area = block.inner(table_area);
     f.render_widget(block, table_area);
 
-    let header_cells = [" ", "Key", "Type", "TTL", "Memory"].iter().map(|h| {
+    let header_cells = ["Key", "Type", "TTL", "Memory"].iter().map(|h| {
         Cell::from(*h).style(
             Style::default()
                 .fg(Color::Yellow)
@@ -80,29 +80,34 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
 
     let rows = app.scan_result.iter().map(|item| {
         let is_selected = app.selected_keys.contains(&item.key);
-        let checkbox = if is_selected { "[x]" } else { "[ ]" };
-        let checkbox_style = if is_selected {
-            Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+
+        let row_style = if is_selected {
+            Style::default()
+                .bg(Color::Green)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD)
         } else {
-            Style::default().fg(Color::DarkGray)
+            Style::default()
         };
 
         let cells = vec![
-            Cell::from(checkbox).style(checkbox_style),
             Cell::from(item.key.clone()),
-            Cell::from(item.key_type.clone()).style(get_type_style(&item.key_type)),
+            Cell::from(item.key_type.clone()).style(if is_selected {
+                Style::default().fg(Color::Black)
+            } else {
+                get_type_style(&item.key_type)
+            }),
             Cell::from(item.ttl.to_string()),
             Cell::from(item.memory_usage.to_string()),
         ];
-        Row::new(cells)
+        Row::new(cells).style(row_style)
     });
 
     let widths = [
-        Constraint::Length(3),      // Checkbox
-        Constraint::Percentage(47), // Key
+        Constraint::Percentage(50), // Key
         Constraint::Percentage(15), // Type
         Constraint::Percentage(15), // TTL
-        Constraint::Percentage(18), // Memory
+        Constraint::Percentage(20), // Memory
     ];
 
     let table = Table::new(rows, widths).header(header).row_highlight_style(
