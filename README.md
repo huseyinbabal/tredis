@@ -243,6 +243,9 @@ Server configurations are stored in:
 | Connect | `c` | Connect to selected server |
 | Add server | `a` | Add a new server |
 | Delete | `Ctrl-d` | Delete selected key/server |
+| Select | `Space` | Toggle selection on current key |
+| Select all | `Ctrl-a` | Select all visible keys |
+| Clear selection | `Esc` | Clear all selections |
 | Quit | `Ctrl-c` / `q` | Exit tredis |
 | **Info Search** | | |
 | Search | `/` | Start search in Info view |
