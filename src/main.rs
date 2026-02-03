@@ -404,7 +404,9 @@ async fn main() -> Result<()> {
                                         app.clear_info_search();
                                     }
                                     // Clear key selection if any keys are selected
-                                    else if app.active_resource == "keys" && !app.selected_keys.is_empty() {
+                                    else if app.active_resource == "keys"
+                                        && !app.selected_keys.is_empty()
+                                    {
                                         app.clear_key_selection();
                                     }
                                     // Stop stream consumer if active
@@ -964,9 +966,12 @@ async fn main() -> Result<()> {
                                         app.mode = Mode::Confirm;
                                     }
                                     // Delete selected keys (in keys view, if any selected)
-                                    else if app.active_resource == "keys" && !app.selected_keys.is_empty() {
+                                    else if app.active_resource == "keys"
+                                        && !app.selected_keys.is_empty()
+                                    {
                                         let selected_count = app.selected_keys.len();
-                                        let selected_list: Vec<String> = app.selected_keys.iter().cloned().collect();
+                                        let selected_list: Vec<String> =
+                                            app.selected_keys.iter().cloned().collect();
                                         app.pending_action = Some(PendingAction {
                                             key: format!("{} keys", selected_count),
                                             action_type: PendingActionType::DeleteSelected,
@@ -976,7 +981,9 @@ async fn main() -> Result<()> {
                                         app.mode = Mode::Confirm;
                                     }
                                     // Delete single key (in keys view, if none selected)
-                                    else if app.active_resource == "keys" && !app.scan_result.is_empty() {
+                                    else if app.active_resource == "keys"
+                                        && !app.scan_result.is_empty()
+                                    {
                                         let key_info = &app.scan_result[app.selected_key_index];
                                         app.pending_action = Some(PendingAction {
                                             key: key_info.key.clone(),
@@ -989,13 +996,17 @@ async fn main() -> Result<()> {
                                 }
                                 KeyCode::Char(' ') => {
                                     // Toggle selection on current key (in keys view)
-                                    if app.active_resource == "keys" && !app.scan_result.is_empty() {
+                                    if app.active_resource == "keys" && !app.scan_result.is_empty()
+                                    {
                                         app.toggle_key_selection();
                                     }
                                 }
-                                KeyCode::Char('a') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                KeyCode::Char('a')
+                                    if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                                {
                                     // Select all filtered keys (in keys view)
-                                    if app.active_resource == "keys" && !app.scan_result.is_empty() {
+                                    if app.active_resource == "keys" && !app.scan_result.is_empty()
+                                    {
                                         app.select_all_keys();
                                     }
                                 }
@@ -1146,10 +1157,17 @@ async fn main() -> Result<()> {
                                             PendingActionType::DeleteSelected => {
                                                 match app.delete_selected_keys().await {
                                                     Ok(count) => {
-                                                        log!(LogLevel::Info, "Deleted {} selected keys", count);
+                                                        log!(
+                                                            LogLevel::Info,
+                                                            "Deleted {} selected keys",
+                                                            count
+                                                        );
                                                     }
                                                     Err(e) => {
-                                                        eprintln!("Error deleting selected keys: {}", e);
+                                                        eprintln!(
+                                                            "Error deleting selected keys: {}",
+                                                            e
+                                                        );
                                                     }
                                                 }
                                                 // Refresh keys list

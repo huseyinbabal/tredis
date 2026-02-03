@@ -34,10 +34,7 @@ fn render_confirm_dialog(f: &mut Frame, app: &App) {
         ),
         PendingActionType::DeleteSelected => (
             "Delete Selected Keys",
-            format!(
-                "Delete {} selected keys?",
-                pending.matched_keys.len()
-            ),
+            format!("Delete {} selected keys?", pending.matched_keys.len()),
         ),
     };
 

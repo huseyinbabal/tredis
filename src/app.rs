@@ -26,6 +26,7 @@ pub struct ResourceItem {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::enum_variant_names)]
 pub enum PendingActionType {
     DeleteKey,
     DeleteServer,
@@ -79,7 +80,7 @@ pub struct App {
     pub filter_active: bool,
     pub pagination: PaginationState,
     pub selected_key_index: usize,
-    pub selected_keys: HashSet<String>,  // Multi-select: tracks selected key names
+    pub selected_keys: HashSet<String>, // Multi-select: tracks selected key names
 
     // Data - Clients
     pub clients: Vec<crate::model::ClientInfo>,
@@ -781,9 +782,8 @@ impl App {
         }
 
         // Clear selection when filter changes - only keep selections that are still visible
-        self.selected_keys.retain(|key| {
-            self.scan_result.iter().any(|k| &k.key == key)
-        });
+        self.selected_keys
+            .retain(|key| self.scan_result.iter().any(|k| &k.key == key));
 
         if self.selected_key_index >= self.scan_result.len() {
             if !self.scan_result.is_empty() {
