@@ -38,12 +38,22 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
         f.render_widget(paragraph, area);
     }
 
-    let title = format!(
-        " Keys ({}/{}) [Page: {}] ",
-        app.scan_result.len(),
-        app.pagination.total_keys,
-        app.pagination.cursor_stack.len() + 1
-    );
+    let title = if app.selected_keys.is_empty() {
+        format!(
+            " Keys ({}/{}) [Page: {}] ",
+            app.scan_result.len(),
+            app.pagination.total_keys,
+            app.pagination.cursor_stack.len() + 1
+        )
+    } else {
+        format!(
+            " Keys ({}/{}) [Page: {}] - {} selected ",
+            app.scan_result.len(),
+            app.pagination.total_keys,
+            app.pagination.cursor_stack.len() + 1,
+            app.selected_keys.len()
+        )
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -69,20 +79,35 @@ pub fn render(f: &mut Frame, app: &App, area: Rect) {
     let header = Row::new(header_cells).height(1);
 
     let rows = app.scan_result.iter().map(|item| {
+        let is_selected = app.selected_keys.contains(&item.key);
+
+        let row_style = if is_selected {
+            Style::default()
+                .bg(Color::Green)
+                .fg(Color::Black)
+                .add_modifier(Modifier::BOLD)
+        } else {
+            Style::default()
+        };
+
         let cells = vec![
             Cell::from(item.key.clone()),
-            Cell::from(item.key_type.clone()).style(get_type_style(&item.key_type)),
+            Cell::from(item.key_type.clone()).style(if is_selected {
+                Style::default().fg(Color::Black)
+            } else {
+                get_type_style(&item.key_type)
+            }),
             Cell::from(item.ttl.to_string()),
             Cell::from(item.memory_usage.to_string()),
         ];
-        Row::new(cells)
+        Row::new(cells).style(row_style)
     });
 
     let widths = [
-        Constraint::Percentage(50),
-        Constraint::Percentage(15),
-        Constraint::Percentage(15),
-        Constraint::Percentage(20),
+        Constraint::Percentage(50), // Key
+        Constraint::Percentage(15), // Type
+        Constraint::Percentage(15), // TTL
+        Constraint::Percentage(20), // Memory
     ];
 
     let table = Table::new(rows, widths).header(header).row_highlight_style(
