@@ -14,14 +14,14 @@ authors = ["Huseyin Babal"]
 [dependencies]
 anyhow = "1.0.102"
 chrono = "0.4.44"
-clap = { version = "4.5.60", features = ["derive"] }
+clap = { version = "4.6.0", features = ["derive"] }
 crossterm = "0.29.0"
 dirs = "6.0"
 futures = "0.3.32"
 hostname = "0.4.0"
 itertools = "0.14.0"
 ratatui = "0.30.0"
-redis = { version = "1.0.4", features = ["tokio-comp", "tls-native-tls", "tokio-native-tls-comp"] }
+redis = { version = "1.0.5", features = ["tokio-comp", "tls-native-tls", "tokio-native-tls-comp"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.149"
 serde_yaml = "0.9"
